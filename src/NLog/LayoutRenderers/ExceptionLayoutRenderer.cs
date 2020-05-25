@@ -36,6 +36,7 @@ namespace NLog.LayoutRenderers
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
+    using System.Diagnostics;
     using System.Linq;
     using System.Reflection;
     using System.Text;
@@ -229,8 +230,12 @@ namespace NLog.LayoutRenderers
 #if !NET3_5 && !SILVERLIGHT4
                 if (logEvent.Exception is AggregateException aggregateException)
                 {
+                    var aggregateExceptionData = aggregateException.Data;
                     aggregateException = aggregateException.Flatten();
                     primaryException = GetPrimaryException(aggregateException);
+                    foreach (var key in aggregateExceptionData.Keys)
+                        primaryException.Data.Add(key, aggregateExceptionData[key]);
+
                     AppendException(primaryException, Formats, builder);
                     if (currentLevel < MaxInnerExceptionLevel)
                     {

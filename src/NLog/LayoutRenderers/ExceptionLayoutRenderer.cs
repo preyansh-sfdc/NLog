@@ -230,13 +230,9 @@ namespace NLog.LayoutRenderers
 #if !NET3_5 && !SILVERLIGHT4
                 if (logEvent.Exception is AggregateException aggregateException)
                 {
-                    var aggregateExceptionData = aggregateException.Data;
                     aggregateException = aggregateException.Flatten();
                     primaryException = GetPrimaryException(aggregateException);
-                    foreach (var key in aggregateExceptionData.Keys)
-                        primaryException.Data.Add(key, aggregateExceptionData[key]);
-
-                    AppendException(primaryException, Formats, builder);
+                    AppendException(primaryException, Formats, builder, (AggregateException)logEvent.Exception);
                     if (currentLevel < MaxInnerExceptionLevel)
                     {
                         currentLevel = AppendInnerExceptionTree(primaryException, currentLevel, builder);
@@ -309,15 +305,27 @@ namespace NLog.LayoutRenderers
             builder.Append(InnerExceptionSeparator);
             AppendException(currentException, InnerFormats ?? Formats, builder);
         }
-
+#if !NET3_5 && !SILVERLIGHT4
+        private void AppendException(Exception currentException, List<ExceptionRenderingFormat> renderFormats, StringBuilder builder, AggregateException aggregateException = null)
+#else
         private void AppendException(Exception currentException, List<ExceptionRenderingFormat> renderFormats, StringBuilder builder)
+#endif
         {
             int currentLength = builder.Length;
             foreach (ExceptionRenderingFormat renderingFormat in renderFormats)
             {
                 int beforeRenderLength = builder.Length;
                 var currentRenderFunction = _renderingfunctions[renderingFormat];
+#if !NET3_5 && !SILVERLIGHT4
+                if (renderingFormat == ExceptionRenderingFormat.Data && aggregateException != null)
+                { 
+                    currentRenderFunction(builder, aggregateException);
+                    currentLength = builder.Length;
+                    builder.Append(Separator);
+                }
+#endif
                 currentRenderFunction(builder, currentException);
+
                 if (builder.Length != beforeRenderLength)
                 {
                     currentLength = builder.Length;

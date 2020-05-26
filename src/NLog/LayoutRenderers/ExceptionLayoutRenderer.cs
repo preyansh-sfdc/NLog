@@ -232,7 +232,7 @@ namespace NLog.LayoutRenderers
                 {
                     aggregateException = aggregateException.Flatten();
                     primaryException = GetPrimaryException(aggregateException);
-                    AppendException(primaryException, Formats, builder, logEvent.Exception);
+                    AppendException(primaryException, Formats, builder, (AggregateException)logEvent.Exception);
                     if (currentLevel < MaxInnerExceptionLevel)
                     {
                         currentLevel = AppendInnerExceptionTree(primaryException, currentLevel, builder);
@@ -305,8 +305,11 @@ namespace NLog.LayoutRenderers
             builder.Append(InnerExceptionSeparator);
             AppendException(currentException, InnerFormats ?? Formats, builder);
         }
-
-        private void AppendException(Exception currentException, List<ExceptionRenderingFormat> renderFormats, StringBuilder builder, Exception aggregateException = null)
+#if !NET3_5 && !SILVERLIGHT4
+        private void AppendException(Exception currentException, List<ExceptionRenderingFormat> renderFormats, StringBuilder builder, AggregateException aggregateException = null)
+#else
+        private void AppendException(Exception currentException, List<ExceptionRenderingFormat> renderFormats, StringBuilder builder)
+#endif
         {
             int currentLength = builder.Length;
             foreach (ExceptionRenderingFormat renderingFormat in renderFormats)
@@ -314,7 +317,7 @@ namespace NLog.LayoutRenderers
                 int beforeRenderLength = builder.Length;
                 var currentRenderFunction = _renderingfunctions[renderingFormat];
 #if !NET3_5 && !SILVERLIGHT4
-                if (renderingFormat == ExceptionRenderingFormat.Data && aggregateException != null && aggregateException is AggregateException)
+                if (renderingFormat == ExceptionRenderingFormat.Data && aggregateException != null)
                 { 
                     currentRenderFunction(builder, aggregateException);
                     currentLength = builder.Length;

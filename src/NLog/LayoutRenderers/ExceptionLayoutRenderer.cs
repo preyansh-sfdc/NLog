@@ -33,13 +33,13 @@
 
 namespace NLog.LayoutRenderers
 {
-    using NLog.Common;
-    using NLog.Config;
-    using NLog.Internal;
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.Text;
+    using NLog.Common;
+    using NLog.Config;
+    using NLog.Internal;
 
     /// <summary>
     /// Exception information provided through 

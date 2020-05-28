@@ -450,7 +450,7 @@ namespace NLog.LayoutRenderers
             }
 #endif
         }
-        private void AppendData(StringBuilder builder, Exception ex, Exception aggregateException = null)
+        private void AppendData(StringBuilder builder, Exception ex, Exception aggregateException)
         {
             if (aggregateException?.Data?.Count > 0)
             {

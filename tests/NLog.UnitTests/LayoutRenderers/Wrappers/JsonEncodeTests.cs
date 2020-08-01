@@ -49,6 +49,33 @@ namespace NLog.UnitTests.LayoutRenderers.Wrappers
             Assert.Equal(@" abc\""\n\b\r\f\t\/\u1234\u5432\\xyz ", l.Render(LogEventInfo.CreateNullEvent()));
         }
 
+        [Theory]
+        [InlineData(0.1, "0.1")]
+        [InlineData(0.1, "0.1", true)]
+        [InlineData(1, "1")]
+        [InlineData(false, "false")]
+        [InlineData('c', "\"c\"")]  // Is this correct?
+        [InlineData("string", "string")]
+        public void JsonEncodeValueTest(object input, string expectedOutput, bool asDecimal = false)
+        {
+            // Arrange
+            if (asDecimal)
+            {
+                // decimals aren't allowed in attributes, so cast it
+                input = (decimal)(double)input;
+            }
+
+            var logEventInfo = LogEventInfo.Create(LogLevel.Info, "JsonEncodeTests", "message1");
+            logEventInfo.Properties["value1"] = input;
+            SimpleLayout l = "${json-encode:${event-properties:value1}}";
+
+            // Act
+            var render = l.Render(logEventInfo);
+
+            // Assert
+            Assert.Equal(expectedOutput, render);
+        }
+
         [Fact]
         public void JsonHyperlinkEscapeForwardSlashTest()
         {

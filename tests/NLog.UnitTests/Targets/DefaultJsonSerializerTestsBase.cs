@@ -60,7 +60,7 @@ namespace NLog.UnitTests.Targets
             var actual = SerializeObject(text);
             Assert.Equal(expected, actual);
         }
-        
+
         [Fact]
         public void MultiLineString_Test()
         {
@@ -70,7 +70,7 @@ namespace NLog.UnitTests.Targets
             var actual = SerializeObject(text);
             Assert.Equal(expected, actual);
         }
-        
+
         [Fact]
         public void StringWithTabBackSpaceFormfeed_Test()
         {
@@ -176,18 +176,46 @@ namespace NLog.UnitTests.Targets
         [InlineData((long)32711520331, "32711520331")]
         [InlineData((ulong)32711520331, "32711520331")]
         [InlineData(3.14159265, "3.14159265")]
+        [InlineData(-3.14159265, "-3.14159265")]
         [InlineData(2776145.7743, "2776145.7743")]
+        [InlineData(-10, "-10")]
+        [InlineData(0, "0")]
+        [InlineData(0.1, "0.1")]
         [InlineData(double.NaN, "\"NaN\"")]
         [InlineData(double.PositiveInfinity, "\"Infinity\"")]
         [InlineData(float.NaN, "\"NaN\"")]
         [InlineData(float.PositiveInfinity, "\"Infinity\"")]
         public void SerializeNumber_Test(object o, string expected)
         {
+            // Act
+            var actual = SerializeObject(o);
+
+            // Assert
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void SerializeNumber_ZeroDecimal_Test()
+        {
+            // Arrange
+            var o = 0.0m;
+            var expected = "0.0";
+
+            // Act
+            var actual = SerializeObject(o);
+
+            // Assert
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void SerializeNumber_ZeroDouble_Test()
+        {
+            var o = 0.0d;
+            var expected = "0.0";
+
             var actual = SerializeObject(o);
             Assert.Equal(expected, actual);
-
-            var result = SerializeObject(o);
-            Assert.Equal(expected, result);
         }
 
         [Fact]
@@ -265,7 +293,7 @@ namespace NLog.UnitTests.Targets
         [Fact]
         public void SerializeTrickyDict_Test()
         {
-            IDictionary<object,object> dictionary = new Internal.TrickyTestDictionary();
+            IDictionary<object, object> dictionary = new Internal.TrickyTestDictionary();
             dictionary.Add("key1", 13);
             dictionary.Add("key 2", 1.3m);
             var actual = SerializeObject(dictionary);
@@ -358,7 +386,7 @@ namespace NLog.UnitTests.Targets
             var actual = SerializeObject(newGuid);
             Assert.Equal("\"" + newGuid.ToString() + "\"", actual);
         }
-        
+
         [Fact]
         public void SerializeEnum_Test()
         {

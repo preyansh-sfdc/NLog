@@ -102,46 +102,7 @@ namespace NLog.Internal
 
             try
             {
-                Type propertyType = propInfo.PropertyType;
-                var unwrappedType = UnwrapTypedLayout(propertyType);
-                var isTypedLayout = unwrappedType != propertyType;
-                var isDynamicTypedLayout = false;
-
-                object newValue = null;
-
-                if (isTypedLayout)
-                {
-                    var layout = new SimpleLayout(value);
-                    if (!layout.IsFixedText)
-                    {
-                        isDynamicTypedLayout = true;
-                        newValue = layout;
-                    }
-                }
-
-                if (!isDynamicTypedLayout && !TryNLogSpecificConversion(unwrappedType, value, configurationItemFactory, out newValue))
-                {
-                    if (propInfo.IsDefined(_arrayParameterAttribute.GetType(), false))
-                    {
-                        throw new NotSupportedException($"Parameter {propertyName} of {objType.Name} is an array and cannot be assigned a scalar value.");
-                    }
-
-                    unwrappedType = Nullable.GetUnderlyingType(unwrappedType) ?? unwrappedType;
-
-                    if (!(TryGetEnumValue(unwrappedType, value, out newValue, true)
-                          || TryImplicitConversion(unwrappedType, value, out newValue)
-                          || TryFlatListConversion(obj, propInfo, value, configurationItemFactory, out newValue)
-                          || TryTypeConverterConversion(unwrappedType, value, out newValue)))
-                    {
-                        newValue = Convert.ChangeType(value, unwrappedType, CultureInfo.InvariantCulture);
-                    }
-                }
-
-                // Wrap value again
-                if (isTypedLayout)
-                {
-                    newValue = WrapIntoTypedLayout(newValue, unwrappedType);
-                }
+                var newValue = ConvertValue2(obj, propertyName, value, configurationItemFactory, propInfo, objType);
 
                 propInfo.SetValue(obj, newValue, null);
             }
@@ -160,6 +121,53 @@ namespace NLog.Internal
 
                 throw new NLogConfigurationException($"Error when setting property '{propInfo.Name}' on {objType.Name}", exception);
             }
+        }
+
+        private static object ConvertValue2(object obj, string proper2tyName, string value, ConfigurationItemFactory configurationItemFactory, PropertyInfo propInfo, Type obj2Type)
+        {
+            Type propertyType = propInfo.PropertyType;
+            var unwrappedType = UnwrapTypedLayout(propertyType);
+            var isTypedLayout = unwrappedType != propertyType;
+            var isDynamicTypedLayout = false;
+
+            object newValue = null;
+
+            if (isTypedLayout)
+            {
+                var layout = new SimpleLayout(value);
+                if (!layout.IsFixedText)
+                {
+                    isDynamicTypedLayout = true;
+                    newValue = layout;
+                }
+            }
+
+            if (!isDynamicTypedLayout && !TryNLogSpecificConversion(unwrappedType, value, configurationItemFactory, out newValue))
+            {
+                //if (propInfo.IsDefined(_arrayParameterAttribute.GetType(), false))
+                //{
+                // todo typedlayout  throw new notsupportedInScalarIets
+                //    throw new NotSupportedException($"Parameter {propertyName} of {objType.Name} is an array and cannot be assigned a scalar value.");
+                //}
+
+                unwrappedType = Nullable.GetUnderlyingType(unwrappedType) ?? unwrappedType;
+
+                if (!(TryGetEnumValue(unwrappedType, value, out newValue, true)
+                      || TryImplicitConversion(unwrappedType, value, out newValue)
+                      || TryFlatListConversion(obj, propInfo, value, configurationItemFactory, out newValue, propertyType) //  todo typedlayout propinfo nullable, todo unwrappedType instead of propertyType?
+                      || TryTypeConverterConversion(unwrappedType, value, out newValue)))
+                {
+                    newValue = Convert.ChangeType(value, unwrappedType, CultureInfo.InvariantCulture);
+                }
+            }
+
+            // Wrap value again
+            if (isTypedLayout)
+            {
+                newValue = WrapIntoTypedLayout(newValue, unwrappedType);
+            }
+
+            return newValue;
         }
 
         private static Type UnwrapTypedLayout(Type propertyType)
@@ -382,9 +390,9 @@ namespace NLog.Internal
         /// <remarks>
         /// If there is a comma in the value, then (single) quote the value. For single quotes, use the backslash as escape
         /// </remarks>
-        private static bool TryFlatListConversion(object obj, PropertyInfo propInfo, string valueRaw, ConfigurationItemFactory configurationItemFactory, out object newValue)
+        private static bool TryFlatListConversion(object obj, PropertyInfo propInfo, string valueRaw, ConfigurationItemFactory configurationItemFactory, out object newValue, Type propInfoPropertyType)
         {
-            if (propInfo.PropertyType.IsGenericType() && TryCreateCollectionObject(obj, propInfo, valueRaw, out var newList, out var collectionAddMethod, out var propertyType))
+            if (propInfoPropertyType.IsGenericType() && TryCreateCollectionObject(obj, propInfo, valueRaw, out var newList, out var collectionAddMethod, out var propertyType, propInfoPropertyType))
             {
                 var values = valueRaw.SplitQuoted(',', '\'', '\\');
                 foreach (var value in values)
@@ -408,9 +416,8 @@ namespace NLog.Internal
             return false;
         }
 
-        private static bool TryCreateCollectionObject(object obj, PropertyInfo propInfo, string valueRaw, out object collectionObject, out MethodInfo collectionAddMethod, out Type collectionItemType)
+        private static bool TryCreateCollectionObject(object obj, PropertyInfo propInfo, string valueRaw, out object collectionObject, out MethodInfo collectionAddMethod, out Type collectionItemType, Type collectionType)
         {
-            var collectionType = propInfo.PropertyType;
             var typeDefinition = collectionType.GetGenericTypeDefinition();
 #if NET3_5
             var isSet = typeDefinition == typeof(HashSet<>);
@@ -420,7 +427,7 @@ namespace NLog.Internal
             //not checking "implements" interface as we are creating HashSet<T> or List<T> and also those checks are expensive
             if (isSet || typeDefinition == typeof(List<>) || typeDefinition == typeof(IList<>) || typeDefinition == typeof(IEnumerable<>)) //set or list/array etc
             {
-                object hashsetComparer = isSet ? ExtractHashSetComparer(obj, propInfo) : null;
+                object hashsetComparer = isSet && propInfo != null ? ExtractHashSetComparer(obj, propInfo) : null;
 
                 //note: type.GenericTypeArguments is .NET 4.5+ 
                 collectionItemType = collectionType.GetGenericArguments()[0];
